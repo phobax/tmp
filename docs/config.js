@@ -1,5 +1,5 @@
 var config = {
-  fms_url : "https://192.168.9.140:8000",
+  fms_url : "https://85.214.240.130:443",
   USE_LOCATION : true,
   SHOW_STOPS : false,
   startPosition : [52.4041, 13.073],
