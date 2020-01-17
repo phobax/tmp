@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=0" charset="utf-8" />
+    <title>pod control</title>
+  </head>
+  <link href="/driver/style.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet" type="text/css" />
+  <link href="/mapbox-gl.css" rel="stylesheet" />
+  <script src="/mapbox-gl.js"></script>
+  <script src="/jquery-3.4.1.min.js"></script>
+  <script src="/driver/util.js"></script>
+  <script src="/driver/fmsConnectorWeb.js"></script>
+  <script src="/driver/pod_map.js"></script>
+  <script src="/driver/pod_client.js"></script>
+  <script src="/config.js"></script>
+  <script src="/httpTemplates.js"></script>
+
+
+  <template id="template">
+    <div id="xxx">
+      <div class="voucher_code">Code</div>
+      <div class="location">Ziel</div>
+      <button id="btn_inside" class="disabled">draußen</button>
+      <button id="btn_end_ride">fahrt ende</button>
+    </div>
+  </template>
+
+
+  <script>
+
+    var STATE = {
+      id : "0",
+      position : [13.074,52.404],
+      user_proximity : 0,
+      pooling : true,
+      users : [],
+      order_ids : [],
+      all_users_ready : false,
+      compassdir : 0
+    }
+
+    var _orders = {};
+
+    function handleFeatureEvent (featureEvent) {
+
+      //TODO: call fms/order/onboarded .... offboarded to replace next_event
+
+      var _state = {id:"0", position:pod.position};
+      pod.driving = false;
+      podConnector.pod_update_state(_state)
+      .then(ret=>{
+        podConnector.order_handle_feature_event(featureEvent)
+        .then(ret=>{
+          // dProp = 0;
+          pod.paused = true;
+        })
+        .catch(err=>{
+          console.log(err);
+        })
+      })
+      .catch(err=>{
+        console.log(err);
+      })
+    }
+
+    function setUserInside (orderId, btn=null) {
+
+      btn.classList.add("blocked");
+      podConnector.order_set_user_inside(orderId, !_orders[orderId].user_inside)
+      .then(ret=>{
+        console.log(ret);
+      })
+      .catch(err=>{
+        console.log(err);
+      })
+    }
+
+
+    function endRide (orderId, btn=null) {
+      podConnector.order_handle_feature_event({order_id:orderId, event_type:"pod_at_dropoff"})
+      .then(ret=>{})
+      .catch(err=>{
+        console.log(err);
+      })
+    }
+
+
+
+    function update_gui() {
+
+      podConnector.get_orders()
+      .then(orders=>{
+
+        _orders = orders;
+        var all_users_ready = (Object.keys(orders).length > 0);
+        var all_users_inside = (Object.keys(orders).length > 0);
+
+        STATE.order_ids = Object.keys(orders);
+        // document.getElementById("info_orders").innerHTML ="";
+
+        for (var orderId of Object.keys(orders)) {
+          var order = orders[orderId];
+
+          all_users_ready &= (order.user_command=="start");
+          all_users_inside &= order.user_inside;
+
+          var div = document.getElementById("order"+order.id);
+
+          // existing order and div: update div
+          if (div) {
+            updateOrderDiv (order, div);
+          }
+
+          // new order, no div: create div
+          else {
+            div = createOrderDiv(order);
+            document.getElementById("info_orders").appendChild(div);
+          }
+        }
+        STATE.all_users_ready = all_users_ready;
+        setButtonActive (document.getElementById("btn_start"), all_users_ready && all_users_inside, ["START","einstieg"]);
+
+        if (order.state=="offboarding" && !order.user_inside) {
+          podConnector.order_handle_feature_event({order_id:orderId, event_type:"offboarding_complete"})
+          .then(ret=>{
+
+          })
+          .catch(err=>{
+
+          })
+        }
+      })
+      .catch(err=>{})
+    }
+
+    var log = [];
+    var podConnector = new PodConnector(config.fms_url);
+    window.onload = () => {
+
+      init_client (config.fms_url)
+      // .then (ret=>{
+        init_map (config.fms_url);
+        $("#input_fms_url").val(config.fms_url);
+
+
+        // setInterval(() => {
+        //   update_state();
+        //   update_gui();
+        // }, 500);
+
+        // navigator.geolocation.watchPosition (
+        //   update_state_callback,
+        //   err=>{debug(err)},
+        //   {
+        //     enableHighAccuracy: false,
+        //     timeout: 1000,
+        //     maximumAge: 0
+        //   }
+        // );
+
+        setInterval(()=>{
+          update_state();
+          // map.setCenter(STATE.position);
+          update_gui();
+          map.setBearing(STATE.compassdir+config.COMPASS_OFFSET);
+        }, 500);
+
+        window.addEventListener('deviceorientation', function(eventData) {
+          var newDir = 0;
+          if(event.webkitCompassHeading) {
+            // Apple works only with this, alpha doesn't work
+            newDir = event.webkitCompassHeading;
+          }
+          else newDir = event.alpha;
+
+          if (Math.abs (newDir - STATE.compassdir) >50 ) {
+            STATE.compassdir = newDir;
+          }
+          else {
+            STATE.compassdir = newDir*0.03+STATE.compassdir*0.97;
+          }
+        });
+      // })
+      // .catch (err=>{
+      //   document.getElementById("control").innerHTML = "ERROR: POD ID ALREADY TAKEN";
+      // })
+    };
+
+    function update_fms_url() {
+      config.fms_url = $("#input_fms_url").val();
+      init_client(config.fms_url);
+      init_map(config.fms_url);
+    }
+
+
+
+    function startRide() {
+      for (var order_id of STATE.order_ids) {
+        podConnector.order_handle_feature_event ({order_id: order_id, event_type:"onboarding_complete"})
+        .then(ret=>{
+          console.log(ret);
+        })
+        .catch(err=>{
+          console.log(err);
+        })
+      }
+    }
+
+    function accept() {
+      for (var order_id of STATE.order_ids) {
+        podConnector.order_handle_feature_event ({order_id: order_id, event_type:"goto_pickup"})
+        .then(ret=>{
+          console.log(ret);
+        })
+        .catch(err=>{
+          console.log(err);
+        })
+      }
+    }
+
+    function at_pickup() {
+      for (var order_id of STATE.order_ids) {
+        podConnector.order_handle_feature_event ({order_id: order_id, event_type:"pod_at_pickup"})
+        .then(ret=>{
+          console.log(ret);
+        })
+        .catch(err=>{
+          console.log(err);
+        })
+      }
+    }
+
+    function debug(o) {
+      document.getElementById("debug").innerHTML = o;
+    }
+
+  </script>
+
+  <body>
+    <div id="app">
+      <div id="map"></div>
+      <div id="events">
+
+        <table>
+          <col width="50%" />
+          <col width="50%" />
+          <!-- <td>
+            <h2>Fahrt</h2>
+            <button class="button disabled" onclick="startRide()" id="btn_start" value="">einstieg</button>
+          </td> -->
+          <td>
+
+            <tr>
+              <button class="button disabled" onclick="startRide()" id="btn_start" value="">onboarding complete</button>
+              <div id="info_user_command"></div>
+              <div id="info_orders"></div>
+            </tr>
+            <tr>
+              <button class="button" onclick="accept()" id="btn_accept" value="">start service</button>
+              <button class="button" onclick="at_pickup()" id="btn_pickup" value="">pod at pickup</button>
+            </tr>
+            <tr>
+              <div id="debug">
+                xxx
+              </div>
+            </tr>
+          </td>
+      </div>
+  </body>
+</html>
