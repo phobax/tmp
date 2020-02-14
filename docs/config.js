@@ -3,7 +3,7 @@ var config = {
   USE_LOCATION : true,
   SHOW_STOPS : false,
   startPosition : [52.4041, 13.073],
-  mapbox_api_key : "pk.eyJ1IjoibWF4Z2VuZSIsImEiOiJjazVpOHhva2gwOG1pM21tbjM1MGZ0MWdjIn0.YcaRguzrCDmrBdhCfohvpA",
+  mapbox_api_key : "pk.eyJ1IjoibWF4Z2VuZSIsImEiOiJjazVtOXoweDEwdXhuM21wdjl5N3YzaWlyIn0.KMLVmoDc-XhMMTl1-iYqYQ",
   COMPASS_OFFSET : -90
 }
 
