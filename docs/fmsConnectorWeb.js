@@ -49,9 +49,15 @@ class FmsConnector {
     })
   }
 
-  get_orders () {
+  get_orders (pod_id=null) {
     return new Promise ((res, rej)=>{
-      get(this.fms_url+"/data/get/orders", {access_token:user_access_token})
+
+      var options = {access_token:user_access_token};
+      if (pod_id) {
+        options["pod_id"] = pod_id;
+      }
+
+      get(this.fms_url+"/data/get/orders", options)
       .then(ret=>{
         res (JSON.parse(ret).message);
       })

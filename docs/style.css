@@ -20,6 +20,8 @@ h2 {
 td {
   padding: 20px;
 }
+
+
 .checkbox {
   height:40px;
   width:40px;
@@ -37,6 +39,16 @@ td {
   border-color: #f00;
 }
 
+.order {
+  background-color: #ccd;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+.boarding {
+  border: 2px;
+  border-style: solid;
+  border-color: red;
+}
 #app {
   display: -ms-flexbox;
   display: -webkit-box;

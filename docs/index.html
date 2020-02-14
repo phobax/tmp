@@ -4,25 +4,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=0" charset="utf-8" />
     <title>pod control</title>
   </head>
-  <link href="/tmp/style.css" rel="stylesheet" />
+  <link href="/driver/style.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet" type="text/css" />
-  <link href="/tmp/mapbox-gl.css" rel="stylesheet" />
-  <script src="/tmp/mapbox-gl.js"></script>
-  <script src="/tmp/jquery-3.4.1.min.js"></script>
-  <script src="/tmp/util.js"></script>
-  <script src="/tmp/fmsConnectorWeb.js"></script>
-  <script src="/tmp/pod_map.js"></script>
-  <script src="/tmp/pod_client.js"></script>
-  <script src="/tmp/config.js"></script>
-  <script src="/tmp/httpTemplates.js"></script>
+  <link href="/mapbox-gl.css" rel="stylesheet" />
+  <script src="/mapbox-gl.js"></script>
+  <script src="/jquery-3.4.1.min.js"></script>
+  <script src="/util.js"></script>
+  <script src="/fmsConnectorWeb.js"></script>
+  <script src="/driver/pod_map.js"></script>
+  <script src="/driver/pod_client.js"></script>
+  <script src="/config.js"></script>
+  <script src="/httpTemplates.js"></script>
 
 
   <template id="template">
-    <div id="xxx">
+    <div id="xxx" class="order">
       <div class="voucher_code">Code</div>
       <div class="location">Ziel</div>
       <button id="btn_inside" class="disabled">draußen</button>
       <button id="btn_end_ride">fahrt ende</button>
+      <button class="button" id="btn_pickup" value="">pod at pickup</button>
+      <button class="button" id="btn_dropoff" value="">pod at dropoff</button>
     </div>
   </template>
 
@@ -37,7 +39,8 @@
       users : [],
       order_ids : [],
       all_users_ready : false,
-      compassdir : 0
+      compassdir : 0,
+      name : "XXX"
     }
 
     var _orders = {};
@@ -64,10 +67,13 @@
       })
     }
 
-    function setUserInside (orderId, btn=null) {
+    function setUserInside (orderId, inside, btn=null) {
 
-      btn.classList.add("blocked");
-      podConnector.order_set_user_inside(orderId, !_orders[orderId].user_inside)
+      if (btn) {
+        btn.classList.add("blocked");
+      }
+
+      podConnector.order_set_user_inside(orderId, inside)
       .then(ret=>{
         console.log(ret);
       })
@@ -77,36 +83,39 @@
     }
 
 
-    function endRide (orderId, btn=null) {
-      podConnector.order_handle_feature_event({order_id:orderId, event_type:"pod_at_dropoff"})
-      .then(ret=>{})
-      .catch(err=>{
-        console.log(err);
-      })
-    }
-
-
-
     function update_gui() {
 
-      podConnector.get_orders()
+      podConnector.get_orders(STATE.id)
       .then(orders=>{
 
+
         _orders = orders;
-        var all_users_ready = (Object.keys(orders).length > 0);
-        var all_users_inside = (Object.keys(orders).length > 0);
+
+        var all_users_ready = false; // (Object.keys(orders).length > 0);
+        var all_users_inside = true; //(Object.keys(orders).length > 0);
 
         STATE.order_ids = Object.keys(orders);
         // document.getElementById("info_orders").innerHTML ="";
 
         for (var orderId of Object.keys(orders)) {
+
           var order = orders[orderId];
 
-          all_users_ready &= (order.user_command=="start");
-          all_users_inside &= order.user_inside;
+          // if (order.state == "ended") continue;
+
+          console.log(order.state);
+          if (order.state=="onboarding" || order.state=="ontrip") {
+            // all_users_ready |= true;
+            // all_users_inside |= true;
+            // all_users_ready &= (order.user_command=="start");
+            all_users_inside = all_users_inside && order.user_inside;
+          }
+
+          if (order.state=="offboarding") {
+            all_users_inside = all_users_inside && !order.user_inside;
+          }
 
           var div = document.getElementById("order"+order.id);
-
           // existing order and div: update div
           if (div) {
             updateOrderDiv (order, div);
@@ -115,21 +124,28 @@
           // new order, no div: create div
           else {
             div = createOrderDiv(order);
-            document.getElementById("info_orders").appendChild(div);
+            if (div) {
+              document.getElementById("info_orders").appendChild(div);
+            }
           }
         }
-        STATE.all_users_ready = all_users_ready;
-        setButtonActive (document.getElementById("btn_start"), all_users_ready && all_users_inside, ["START","einstieg"]);
 
-        if (order.state=="offboarding" && !order.user_inside) {
-          podConnector.order_handle_feature_event({order_id:orderId, event_type:"offboarding_complete"})
-          .then(ret=>{
 
-          })
-          .catch(err=>{
+        // STATE.all_users_ready = all_users_inside; //all_users_ready;
+        all_users_ready = all_users_inside;
+        setButtonActive (document.getElementById("btn_start"), all_users_ready && all_users_inside, ["WEITER","boarding"]);
 
-          })
-        }
+
+        // not needed, do manually
+        // if (order.state=="offboarding" && !order.user_inside) {
+        //   podConnector.order_handle_feature_event({order_id:orderId, event_type:"offboarding_complete"})
+        //   .then(ret=>{
+        //
+        //   })
+        //   .catch(err=>{
+        //
+        //   })
+        // }
       })
       .catch(err=>{})
     }
@@ -219,16 +235,35 @@
       }
     }
 
-    function at_pickup() {
-      for (var order_id of STATE.order_ids) {
-        podConnector.order_handle_feature_event ({order_id: order_id, event_type:"pod_at_pickup"})
-        .then(ret=>{
-          console.log(ret);
-        })
-        .catch(err=>{
-          console.log(err);
-        })
-      }
+    function atDropoff (orderId, btn) {
+      podConnector.order_handle_feature_event ({order_id: orderId, event_type:"pod_at_dropoff"})
+      .then(ret=>{
+        console.log(ret);
+      })
+      .catch(err=>{
+        console.log(err);
+      })
+    }
+
+    function endRide (orderId, btn) {
+      setUserInside(orderId, false, null)
+      podConnector.order_handle_feature_event ({order_id: orderId, event_type:"offboarding_complete"})
+      .then(ret=>{
+        console.log(ret);
+      })
+      .catch(err=>{
+        console.log(err);
+      })
+    }
+
+    function atPickup (orderId, btn) {
+      podConnector.order_handle_feature_event ({order_id: orderId, event_type:"pod_at_pickup"})
+      .then(ret=>{
+        console.log(ret);
+      })
+      .catch(err=>{
+        console.log(err);
+      })
     }
 
     function debug(o) {
@@ -257,8 +292,7 @@
               <div id="info_orders"></div>
             </tr>
             <tr>
-              <button class="button" onclick="accept()" id="btn_accept" value="">start service</button>
-              <button class="button" onclick="at_pickup()" id="btn_pickup" value="">pod at pickup</button>
+              ...
             </tr>
             <tr>
               <div id="debug">

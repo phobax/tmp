@@ -25,10 +25,15 @@ var last_event = "";
 
   function init_client() {
     params = getUrlParams();
-    console.log(params);
     if ("location" in params) {
       config.USE_LOCATION = false;
       STATE.position = JSON.parse(params.location);
+    }
+    if ("id" in params) {
+      STATE.id = params.id;
+    }
+    if ("name" in params) {
+      STATE.name = params.name;
     }
   }
 
