@@ -94,6 +94,7 @@ var last_event = "";
           // console.log(ret);
         })
         .catch(err=>{
+          debug(err)
           console.log(err);
         })
       })
