@@ -99,7 +99,7 @@ class FmsConnector {
         res(ret);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
