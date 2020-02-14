@@ -55,14 +55,17 @@
       .then(ret=>{
         podConnector.order_handle_feature_event(featureEvent)
         .then(ret=>{
+          debug(ret)
           // dProp = 0;
           pod.paused = true;
         })
         .catch(err=>{
+          debug(err)
           console.log(err);
         })
       })
       .catch(err=>{
+        debug(err)
         console.log(err);
       })
     }
