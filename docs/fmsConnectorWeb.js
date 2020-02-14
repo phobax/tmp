@@ -14,7 +14,7 @@ class FmsConnector {
         res(true);
       })
       .catch (err=> {
-        res(false);
+        res(err);
       })
     })
   }
@@ -26,7 +26,7 @@ class FmsConnector {
         res(true);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
@@ -74,7 +74,7 @@ class FmsConnector {
         res(ret);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
@@ -86,7 +86,7 @@ class FmsConnector {
         res(ret);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
@@ -114,7 +114,7 @@ class FmsConnector {
         res(ret);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
@@ -163,11 +163,11 @@ class FmsConnector {
       get(this.fms_url+"set_destination", {user_id, destination, access_token:user_access_token})
       .then(ret=>{
         if (ret.code==0)
-          res(true);
-        else rej(false);
+          res(ret);
+        else rej(err);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
@@ -188,11 +188,11 @@ class FmsConnector {
     return new Promise ((res, rej)=>{
       post (this.fms_url+"/user/update_state", {access_token:user_access_token}, state)
       .then(ret=>{
-        if (ret.code != 0) rej(false);
-        else res(true);
+        if (ret.code != 0) rej(ret);
+        else res(ret);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
@@ -228,7 +228,7 @@ class FmsConnector {
         res(ret);
       })
       .catch(err=>{
-        rej(false);
+        rej(err);
       })
     })
   }
