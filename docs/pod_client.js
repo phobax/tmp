@@ -81,7 +81,7 @@ var last_event = "";
     if (config.USE_LOCATION) {
       getLocation()
       .then(loc=>{
-        debug(loc.coords.accuracy+" "+cnt)
+        debug2(loc.coords.accuracy+" "+cnt)
         cnt += 1;
         STATE.position = [loc.coords.longitude,loc.coords.latitude];
       })
